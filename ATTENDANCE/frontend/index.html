@@ -1,0 +1,1282 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Face Recognition Attendance</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://code.iconify.design/iconify-icon/1.0.7/iconify-icon.min.js"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+    
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+        }
+        
+        .section-content {
+            display: none;
+            animation: slideUpFade 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+        }
+        
+        .section-content.active {
+            display: block;
+        }
+
+        @keyframes slideUpFade {
+            from { opacity: 0; transform: translateY(8px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        /* Custom Scrollbar for tables */
+        .custom-scrollbar::-webkit-scrollbar {
+            height: 6px;
+            width: 6px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-track {
+            background: transparent;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb {
+            background-color: #e5e7eb;
+            border-radius: 10px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+            background-color: #d1d5db;
+        }
+
+        /* Toast Animation */
+        @keyframes toastEnter {
+            from { opacity: 0; transform: translateY(100%) scale(0.95); }
+            to { opacity: 1; transform: translateY(0) scale(1); }
+        }
+        .toast-animate {
+            animation: toastEnter 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+        }
+        
+        /* Smooth video feed */
+        video {
+            transform: scaleX(-1); /* Mirror camera */
+        }
+    </style>
+</head>
+<body class="bg-[#fafafa] text-gray-900 antialiased selection:bg-gray-200">
+
+    <!-- Top Navigation -->
+    <header class="sticky top-0 z-40 bg-white/80 backdrop-blur-md border-b border-gray-200">
+        <div class="max-w-6xl mx-auto px-6 h-16 flex items-center justify-between">
+            <div class="flex items-center gap-2">
+                <div class="w-8 h-8 rounded-lg bg-gray-900 text-white flex items-center justify-center font-semibold text-sm tracking-tighter">
+                    FR
+                </div>
+                <h1 class="font-semibold tracking-tight text-base text-gray-900">Attendance</h1>
+            </div>
+            
+            <nav class="flex items-center p-1 bg-gray-100/50 border border-gray-200/60 rounded-lg" id="main-nav">
+                <button class="nav-btn px-3 py-1.5 rounded-md text-sm font-medium bg-white text-gray-900 shadow-sm ring-1 ring-gray-900/5 transition-all flex items-center gap-2" onclick="showSection('dashboard', this)">
+                    <iconify-icon icon="solar:widget-linear" stroke-width="1.5"></iconify-icon>
+                    Dashboard
+                </button>
+                <button class="nav-btn px-3 py-1.5 rounded-md text-sm font-medium text-gray-500 hover:text-gray-900 hover:bg-gray-100/50 transition-all flex items-center gap-2" onclick="showSection('students', this)">
+                    <iconify-icon icon="solar:users-group-rounded-linear" stroke-width="1.5"></iconify-icon>
+                    Students
+                </button>
+                <button class="nav-btn px-3 py-1.5 rounded-md text-sm font-medium text-gray-500 hover:text-gray-900 hover:bg-gray-100/50 transition-all flex items-center gap-2" onclick="showSection('attendance', this)">
+                    <iconify-icon icon="solar:camera-linear" stroke-width="1.5"></iconify-icon>
+                    Session
+                </button>
+                <button class="nav-btn px-3 py-1.5 rounded-md text-sm font-medium text-gray-500 hover:text-gray-900 hover:bg-gray-100/50 transition-all flex items-center gap-2" onclick="showSection('reports', this)">
+                    <iconify-icon icon="solar:document-text-linear" stroke-width="1.5"></iconify-icon>
+                    Reports
+                </button>
+            </nav>
+        </div>
+    </header>
+
+    <main class="max-w-6xl mx-auto px-6 py-8">
+        
+        <!-- Dashboard Section -->
+        <section id="dashboard" class="section-content active">
+            <div class="flex items-center justify-between mb-6">
+                <h2 class="text-xl font-semibold tracking-tight">Overview</h2>
+                <div class="flex gap-3">
+                    <button class="bg-white border border-gray-200 text-gray-700 px-4 py-2 rounded-lg text-sm font-medium hover:bg-gray-50 transition-colors shadow-sm flex items-center gap-2" onclick="showSection('students', document.querySelectorAll('.nav-btn')[1])">
+                        <iconify-icon icon="solar:user-plus-linear" stroke-width="1.5"></iconify-icon> Add Student
+                    </button>
+                    <button class="bg-gray-900 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-gray-800 transition-colors shadow-sm flex items-center gap-2" onclick="showSection('attendance', document.querySelectorAll('.nav-btn')[2])">
+                        <iconify-icon icon="solar:play-circle-linear" stroke-width="1.5"></iconify-icon> Start Session
+                    </button>
+                </div>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
+                <div class="bg-white rounded-xl border border-gray-200 p-5 shadow-sm relative overflow-hidden">
+                    <div class="flex items-center gap-3 mb-2 text-gray-500">
+                        <iconify-icon icon="solar:users-group-two-rounded-linear" class="text-lg" stroke-width="1.5"></iconify-icon>
+                        <h3 class="text-sm font-medium">Total Students</h3>
+                    </div>
+                    <p class="text-3xl font-semibold tracking-tight text-gray-900" id="total-students">0</p>
+                </div>
+                
+                <div class="bg-white rounded-xl border border-gray-200 p-5 shadow-sm relative overflow-hidden">
+                    <div class="flex items-center gap-3 mb-2 text-gray-500">
+                        <iconify-icon icon="solar:record-circle-linear" class="text-lg" stroke-width="1.5"></iconify-icon>
+                        <h3 class="text-sm font-medium">Active Sessions</h3>
+                    </div>
+                    <p class="text-3xl font-semibold tracking-tight text-gray-900" id="active-sessions">0</p>
+                    <div class="absolute top-5 right-5 w-2 h-2 rounded-full bg-green-500 animate-pulse hidden" id="active-indicator"></div>
+                </div>
+                
+                <div class="bg-white rounded-xl border border-gray-200 p-5 shadow-sm relative overflow-hidden">
+                    <div class="flex items-center gap-3 mb-2 text-gray-500">
+                        <iconify-icon icon="solar:calendar-mark-linear" class="text-lg" stroke-width="1.5"></iconify-icon>
+                        <h3 class="text-sm font-medium">Today's Attendance</h3>
+                    </div>
+                    <p class="text-3xl font-semibold tracking-tight text-gray-900" id="today-attendance">0%</p>
+                </div>
+            </div>
+        </section>
+
+        <!-- Students Section -->
+        <section id="students" class="section-content">
+            <h2 class="text-xl font-semibold tracking-tight mb-6">Directory</h2>
+            
+            <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                <!-- Registration Form -->
+                <div class="lg:col-span-1">
+                    <div class="bg-white rounded-xl border border-gray-200 p-5 shadow-sm">
+                        <div class="flex items-center gap-2 mb-4 text-gray-900">
+                            <iconify-icon icon="solar:user-id-linear" class="text-lg" stroke-width="1.5"></iconify-icon>
+                            <h3 class="font-semibold text-sm">Register Student</h3>
+                        </div>
+                        
+                        <form id="add-student-form" class="space-y-4">
+                            <div>
+                                <label for="student-name" class="block text-xs font-medium text-gray-500 mb-1.5 uppercase tracking-wider">Full Name</label>
+                                <input type="text" id="student-name" required class="w-full bg-transparent border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-gray-400 focus:ring-1 focus:ring-gray-400 transition-shadow placeholder-gray-400" placeholder="Jane Doe">
+                            </div>
+                            
+                            <div>
+                                <label for="roll-number" class="block text-xs font-medium text-gray-500 mb-1.5 uppercase tracking-wider">Roll Number</label>
+                                <input type="text" id="roll-number" required class="w-full bg-transparent border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-gray-400 focus:ring-1 focus:ring-gray-400 transition-shadow placeholder-gray-400" placeholder="CS-2023-001">
+                            </div>
+                            
+                            <div>
+                                <label class="block text-xs font-medium text-gray-500 mb-1.5 uppercase tracking-wider">Quick Add Options</label>
+                                <div class="flex gap-2 mb-3">
+                                    <button type="button" class="flex-1 bg-blue-50 border border-blue-200 text-blue-700 px-3 py-2 rounded-md text-xs font-medium hover:bg-blue-100 transition-colors flex items-center justify-center gap-1.5" onclick="showIDCardUpload()">
+                                        <iconify-icon icon="solar:id-card-linear" stroke-width="1.5"></iconify-icon>
+                                        Scan ID Card
+                                    </button>
+                                    <button type="button" class="flex-1 bg-gray-50 border border-gray-200 text-gray-700 px-3 py-2 rounded-md text-xs font-medium hover:bg-gray-100 transition-colors flex items-center justify-center gap-1.5" onclick="manualFill()">
+                                        <iconify-icon icon="solar:keyboard-linear" stroke-width="1.5"></iconify-icon>
+                                        Manual Entry
+                                    </button>
+                                </div>
+                                
+                                <!-- ID Card Upload Section (Hidden by default) -->
+                                <div id="id-card-section" class="hidden border border-blue-200 rounded-lg p-3 bg-blue-50/50 mb-3">
+                                    <div class="flex items-center justify-between mb-2">
+                                        <span class="text-xs font-medium text-blue-900">Upload ID Card</span>
+                                        <button type="button" onclick="hideIDCardUpload()" class="text-blue-600 hover:text-blue-800">
+                                            <iconify-icon icon="solar:close-circle-linear" class="text-sm"></iconify-icon>
+                                        </button>
+                                    </div>
+                                    <input type="file" id="id-card-input" accept="image/*" class="w-full text-xs mb-2 border border-blue-200 rounded px-2 py-1.5 bg-white" onchange="handleIDCardUpload(event)">
+                                    <div id="id-card-preview" class="hidden mb-2">
+                                        <img id="id-card-preview-img" class="w-full h-32 object-cover rounded border border-blue-200">
+                                    </div>
+                                    <button type="button" onclick="scanIDCard()" class="w-full bg-blue-600 text-white px-3 py-1.5 rounded-md text-xs font-medium hover:bg-blue-700 transition-colors flex items-center justify-center gap-1.5">
+                                        <iconify-icon icon="solar:scan-linear" stroke-width="1.5"></iconify-icon>
+                                        Scan & Extract
+                                    </button>
+                                </div>
+                            </div>
+                            
+                            <div>
+                                <label class="block text-xs font-medium text-gray-500 mb-1.5 uppercase tracking-wider">Face Data</label>
+                                <div class="border border-gray-200 rounded-lg p-2 bg-gray-50">
+                                    <div class="relative w-full aspect-video bg-gray-200 rounded-md overflow-hidden flex items-center justify-center mb-3">
+                                        <iconify-icon icon="solar:camera-minimalistic-linear" class="text-3xl text-gray-400 absolute" stroke-width="1.5"></iconify-icon>
+                                        <video id="camera-video" autoplay class="w-full h-full object-cover relative z-10 hidden"></video>
+                                        <img id="captured-image" class="w-full h-full object-cover relative z-20 hidden" alt="Captured">
+                                    </div>
+                                    <canvas id="camera-canvas" class="hidden"></canvas>
+                                    <input type="hidden" id="captured-image-data">
+                                    
+                                    <div class="flex gap-2">
+                                        <button type="button" class="flex-1 bg-white border border-gray-200 text-gray-700 px-3 py-1.5 rounded-md text-xs font-medium hover:bg-gray-50 transition-colors" onclick="startCamera()" id="btn-start-cam">Start Cam</button>
+                                        <button type="button" class="flex-1 bg-white border border-gray-200 text-gray-700 px-3 py-1.5 rounded-md text-xs font-medium hover:bg-gray-50 transition-colors opacity-50 cursor-not-allowed" onclick="capturePhoto()" id="btn-capture" disabled>Capture</button>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <button type="submit" class="w-full bg-gray-900 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-gray-800 transition-colors shadow-sm mt-2">
+                                Save Student
+                            </button>
+                        </form>
+                    </div>
+                </div>
+
+                <!-- Students List -->
+                <div class="lg:col-span-2">
+                    <div class="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden flex flex-col h-full">
+                        <div class="px-5 py-4 border-b border-gray-100 flex items-center justify-between">
+                            <h3 class="font-semibold text-sm text-gray-900">Enrolled Students</h3>
+                            <div class="relative">
+                                <iconify-icon icon="solar:magnifer-linear" class="absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-400"></iconify-icon>
+                                <input type="text" placeholder="Search..." class="pl-8 pr-3 py-1.5 text-sm border border-gray-200 rounded-md focus:outline-none focus:border-gray-400 bg-gray-50/50">
+                            </div>
+                        </div>
+                        
+                        <div class="overflow-x-auto custom-scrollbar flex-1">
+                            <table class="w-full text-sm text-left" id="students-table">
+                                <thead class="text-xs text-gray-500 bg-gray-50/50 font-medium uppercase tracking-wider sticky top-0 z-10">
+                                    <tr>
+                                        <th class="px-5 py-3 border-b border-gray-100">ID</th>
+                                        <th class="px-5 py-3 border-b border-gray-100">Name</th>
+                                        <th class="px-5 py-3 border-b border-gray-100">Roll Number</th>
+                                        <th class="px-5 py-3 border-b border-gray-100 text-right">Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="students-tbody" class="divide-y divide-gray-100">
+                                    <!-- Populated by JS -->
+                                    <tr>
+                                        <td colspan="4" class="px-5 py-8 text-center text-gray-400 text-sm">Loading directory...</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Attendance Section -->
+        <section id="attendance" class="section-content">
+            <h2 class="text-xl font-semibold tracking-tight mb-6">Live Session</h2>
+            
+            <div class="grid grid-cols-1 lg:grid-cols-4 gap-6">
+                
+                <!-- Controls & Info -->
+                <div class="lg:col-span-1 space-y-4">
+                    <div class="bg-white rounded-xl border border-gray-200 p-5 shadow-sm" id="session-setup">
+                        <h3 class="font-semibold text-sm text-gray-900 mb-4 flex items-center gap-2">
+                            <iconify-icon icon="solar:settings-linear" class="text-lg"></iconify-icon> New Session
+                        </h3>
+                        
+                        <div class="space-y-4">
+                            <div>
+                                <label for="subject" class="block text-xs font-medium text-gray-500 mb-1.5 uppercase tracking-wider">Subject</label>
+                                <div class="relative">
+                                    <select id="subject" class="w-full appearance-none bg-transparent border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-gray-400 focus:ring-1 focus:ring-gray-400 transition-shadow pr-8">
+                                        <option value="General">General</option>
+                                    </select>
+                                    <iconify-icon icon="solar:alt-arrow-down-linear" class="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none"></iconify-icon>
+                                </div>
+                            </div>
+                            
+                            <div>
+                                <label for="session-name" class="block text-xs font-medium text-gray-500 mb-1.5 uppercase tracking-wider">Session Name</label>
+                                <input type="text" id="session-name" placeholder="e.g., Lecture 1, Mid-term, Quiz" class="w-full bg-transparent border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-gray-400 focus:ring-1 focus:ring-gray-400 transition-shadow">
+                            </div>
+                            
+                            <div>
+                                <label for="duration" class="block text-xs font-medium text-gray-500 mb-1.5 uppercase tracking-wider">Duration</label>
+                                <div class="relative">
+                                    <select id="duration" class="w-full appearance-none bg-transparent border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-gray-400 focus:ring-1 focus:ring-gray-400 transition-shadow pr-8">
+                                        <option value="1">1 Hour</option>
+                                        <option value="2">2 Hours</option>
+                                        <option value="3">3 Hours</option>
+                                        <option value="4">4 Hours</option>
+                                    </select>
+                                    <iconify-icon icon="solar:alt-arrow-down-linear" class="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none"></iconify-icon>
+                                </div>
+                            </div>
+                            
+                            <button class="w-full bg-gray-900 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-gray-800 transition-colors shadow-sm flex justify-center items-center gap-2" onclick="startAttendanceSession()">
+                                <iconify-icon icon="solar:play-linear"></iconify-icon> Start Detection
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="bg-white rounded-xl border border-gray-200 p-5 shadow-sm hidden" id="session-active-info">
+                        <div class="flex items-center justify-between mb-4">
+                            <h3 class="font-semibold text-sm text-gray-900 flex items-center gap-2">
+                                <span class="w-2 h-2 rounded-full bg-red-500 animate-pulse"></span> Active
+                            </h3>
+                            <span class="text-xs font-medium text-gray-500 font-mono" id="current-session-id">---</span>
+                        </div>
+                        
+                        <div class="space-y-3 text-sm mb-5">
+                            <div class="flex justify-between border-b border-gray-50 pb-2">
+                                <span class="text-gray-500">Started</span>
+                                <span class="font-medium text-gray-900" id="session-start-time">--:--</span>
+                            </div>
+                            <div class="flex justify-between">
+                                <span class="text-gray-500">Ends</span>
+                                <span class="font-medium text-gray-900" id="session-end-time">--:--</span>
+                            </div>
+                        </div>
+
+                        <button class="w-full bg-white border border-red-200 text-red-600 px-4 py-2 rounded-lg text-sm font-medium hover:bg-red-50 transition-colors flex justify-center items-center gap-2" onclick="endAttendanceSession()">
+                            <iconify-icon icon="solar:stop-circle-linear"></iconify-icon> End Session
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Camera Feed & Logs -->
+                <div class="lg:col-span-3">
+                    <div class="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden h-full flex flex-col relative" id="attendance-area">
+                        
+                        <!-- Overlay when inactive -->
+                        <div class="absolute inset-0 bg-gray-50/80 backdrop-blur-sm z-20 flex flex-col items-center justify-center text-gray-400" id="inactive-overlay">
+                            <iconify-icon icon="solar:videocamera-record-linear" class="text-4xl mb-2"></iconify-icon>
+                            <p class="text-sm font-medium">Start a session to activate camera</p>
+                        </div>
+
+                        <div class="relative bg-black w-full aspect-video flex-shrink-0">
+                            <video id="attendance-video" class="w-full h-full object-cover hidden" autoplay muted></video>
+                            <canvas id="attendance-canvas" class="hidden"></canvas>
+                            
+                            <!-- Scanner animation overlay -->
+                            <div class="absolute inset-0 pointer-events-none hidden" id="scanner-overlay">
+                                <div class="w-full h-0.5 bg-green-400/50 shadow-[0_0_15px_rgba(74,222,128,0.5)] absolute top-0 animate-[scan_2s_ease-in-out_infinite]"></div>
+                            </div>
+                        </div>
+                        <style>
+                            @keyframes scan {
+                                0%, 100% { top: 0; }
+                                50% { top: 100%; }
+                            }
+                        </style>
+
+                        <div class="p-5 flex-1 bg-white">
+                            <h4 class="text-xs font-medium text-gray-500 mb-3 uppercase tracking-wider flex items-center gap-2">
+                                <iconify-icon icon="solar:history-linear"></iconify-icon> Recognition Log
+                            </h4>
+                            <div id="recognized-list" class="flex flex-wrap gap-2">
+                                <!-- Tags will appear here -->
+                                <p class="text-sm text-gray-400 italic w-full text-center py-4" id="empty-log-msg">Waiting for faces...</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Reports Section -->
+        <section id="reports" class="section-content">
+            <h2 class="text-xl font-semibold tracking-tight mb-6">Analytics & Exports</h2>
+            
+            <div class="bg-white rounded-xl border border-gray-200 p-5 shadow-sm mb-6 flex flex-wrap items-end gap-4">
+                <div>
+                    <label class="block text-xs font-medium text-gray-500 mb-1.5 uppercase tracking-wider">Period</label>
+                    <div class="flex gap-2">
+                        <div class="relative">
+                            <select id="report-month-month" class="w-32 appearance-none bg-transparent border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-gray-400 pr-8">
+                                <option value="1">January</option>
+                                <option value="2">February</option>
+                                <option value="3">March</option>
+                                <option value="4">April</option>
+                                <option value="5">May</option>
+                                <option value="6">June</option>
+                                <option value="7">July</option>
+                                <option value="8">August</option>
+                                <option value="9">September</option>
+                                <option value="10">October</option>
+                                <option value="11">November</option>
+                                <option value="12">December</option>
+                            </select>
+                            <iconify-icon icon="solar:alt-arrow-down-linear" class="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none"></iconify-icon>
+                        </div>
+                        <div class="relative">
+                            <select id="report-month-year" class="w-24 appearance-none bg-transparent border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-gray-400 pr-8">
+                                <!-- Populated by JS -->
+                            </select>
+                            <iconify-icon icon="solar:alt-arrow-down-linear" class="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none"></iconify-icon>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="flex gap-2 ml-auto">
+                    <button class="bg-white border border-gray-200 text-gray-700 px-4 py-2 rounded-lg text-sm font-medium hover:bg-gray-50 transition-colors shadow-sm" onclick="generateMonthlyReport()">
+                        Generate View
+                    </button>
+                    <button class="bg-gray-900 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-gray-800 transition-colors shadow-sm hidden items-center gap-2" id="download-excel-btn" onclick="downloadExcelReport()">
+                        <iconify-icon icon="solar:file-download-linear"></iconify-icon> Export CSV
+                    </button>
+                </div>
+            </div>
+
+            <div class="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden hidden" id="report-display">
+                <div class="px-5 py-4 border-b border-gray-100 flex items-center justify-between bg-gray-50/50">
+                    <h3 class="font-semibold text-sm text-gray-900">Attendance Grid</h3>
+                </div>
+                <div class="overflow-x-auto custom-scrollbar">
+                    <table class="w-full text-sm text-left" id="report-table">
+                        <thead class="text-xs text-gray-500 bg-white font-medium uppercase tracking-wider sticky top-0 z-10 border-b border-gray-100 shadow-sm">
+                            <tr>
+                                <th class="px-5 py-3 bg-white sticky left-0 z-20 border-r border-gray-100 w-32">Roll No</th>
+                                <th class="px-5 py-3 bg-white sticky left-32 z-20 border-r border-gray-100 min-w-[150px]">Name</th>
+                                <!-- Days injected here -->
+                            </tr>
+                        </thead>
+                        <tbody id="report-tbody" class="divide-y divide-gray-100 whitespace-nowrap">
+                            <!-- Report data injected here -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </section>
+
+    </main>
+
+    <script>
+        // Global variables
+        let currentSession = null;
+        let attendanceStream = null;
+        let recognitionInterval = null;
+        let studentCameraStream = null;
+
+        // Mock API base URL (Keep original logic)
+        const API_BASE = 'http://localhost:5000/api';
+
+        document.addEventListener('DOMContentLoaded', function() {
+            loadDashboardStats();
+            loadStudents();
+            loadSessions();
+            loadSubjects(); // Load subjects on page load
+            populateYearDropdown();
+            setCurrentMonth();
+        });
+
+        // UI Navigation Logic
+        function showSection(sectionId, clickedBtn) {
+            // Hide all sections
+            document.querySelectorAll('.section-content').forEach(section => {
+                section.classList.remove('active');
+            });
+            
+            // Reset nav buttons styling
+            const defaultClasses = 'nav-btn px-3 py-1.5 rounded-md text-sm font-medium text-gray-500 hover:text-gray-900 hover:bg-gray-100/50 transition-all flex items-center gap-2';
+            const activeClasses = 'nav-btn active px-3 py-1.5 rounded-md text-sm font-medium bg-white text-gray-900 shadow-sm ring-1 ring-gray-900/5 transition-all flex items-center gap-2';
+            
+            document.querySelectorAll('.nav-btn').forEach(btn => {
+                btn.className = defaultClasses;
+            });
+            
+            // Activate selected
+            document.getElementById(sectionId).classList.add('active');
+            if(clickedBtn) {
+                clickedBtn.className = activeClasses;
+            } else {
+                // Find matching button if called from elsewhere
+                const targetBtn = Array.from(document.querySelectorAll('.nav-btn')).find(b => b.getAttribute('onclick').includes(sectionId));
+                if(targetBtn) targetBtn.className = activeClasses;
+            }
+            
+            // Refresh data
+            if (sectionId === 'dashboard') loadDashboardStats();
+            else if (sectionId === 'students') loadStudents();
+            else if (sectionId === 'attendance') loadSessions();
+        }
+
+        // Modern Toast Notifications
+        function showMessage(message, type) {
+            let container = document.getElementById('toast-container');
+            if (!container) {
+                container = document.createElement('div');
+                container.id = 'toast-container';
+                container.className = 'fixed bottom-6 right-6 z-50 flex flex-col gap-3 pointer-events-none';
+                document.body.appendChild(container);
+            }
+
+            const toast = document.createElement('div');
+            const isError = type === 'error';
+            
+            toast.className = `toast-animate pointer-events-auto flex items-center gap-3 px-4 py-3 rounded-xl shadow-lg border text-sm font-medium bg-white ${isError ? 'border-red-100 text-red-900' : 'border-gray-200 text-gray-900'}`;
+            
+            const icon = isError 
+                ? `<iconify-icon icon="solar:danger-circle-bold" class="text-red-500 text-lg"></iconify-icon>` 
+                : `<iconify-icon icon="solar:check-circle-bold" class="text-green-500 text-lg"></iconify-icon>`;
+            
+            toast.innerHTML = `${icon} <span>${message}</span>`;
+            container.appendChild(toast);
+
+            setTimeout(() => {
+                toast.style.opacity = '0';
+                toast.style.transform = 'translateY(10px) scale(0.95)';
+                toast.style.transition = 'all 0.3s cubic-bezier(0.16, 1, 0.3, 1)';
+                setTimeout(() => toast.remove(), 300);
+            }, 3000);
+        }
+
+        // --- Original Application Logic Adapted for New UI ---
+
+        async function loadDashboardStats() {
+            try {
+                const [studentsResponse, sessionsResponse] = await Promise.all([
+                    fetch(`${API_BASE}/students`),
+                    fetch(`${API_BASE}/sessions`)
+                ]);
+                const students = await studentsResponse.json();
+                const sessions = await sessionsResponse.json();
+               
+                // Calculate today's attendance percentage
+                const today = new Date().toISOString().split('T')[0];
+                let todayAttendanceCount = 0;
+                let totalSessionsToday = 0;
+
+                sessions.forEach(session => {
+                    const sessionDate = new Date(session.start_time).toISOString().split('T')[0];
+                    if (sessionDate === today) {
+                        totalSessionsToday++;
+                        if (session.is_active) {
+                            todayAttendanceCount++;
+                        }
+                    }
+                });
+
+                const attendancePercentage = totalSessionsToday > 0 ? 
+                    Math.round((todayAttendanceCount / totalSessionsToday) * 100) : 0;
+
+                document.getElementById('total-students').textContent = students.length;
+                
+                const activeSessions = sessions.filter(s => s.is_active);
+                document.getElementById('active-sessions').textContent = activeSessions.length;
+                
+                if(activeSessions.length > 0) {
+                    document.getElementById('active-indicator').classList.remove('hidden');
+                } else {
+                    document.getElementById('active-indicator').classList.add('hidden');
+                }
+                
+                document.getElementById('today-attendance').textContent = `${attendancePercentage}%`;
+                
+            } catch (error) {
+                console.error('Error loading dashboard stats:', error);
+                showMessage('Failed to load dashboard data', 'error');
+            }
+        }
+
+        async function loadStudents() {
+            try {
+                const response = await fetch(`${API_BASE}/students`);
+                const students = await response.json();
+                
+                const tbody = document.getElementById('students-tbody');
+                tbody.innerHTML = '';
+                
+                if(students.length === 0) {
+                    tbody.innerHTML = `<tr><td colspan="4" class="px-5 py-8 text-center text-gray-400 text-sm">No students found.</td></tr>`;
+                    return;
+                }
+
+                students.forEach(student => {
+                    const row = document.createElement('tr');
+                    row.className = "hover:bg-gray-50/50 transition-colors group";
+                    row.innerHTML = `
+                        <td class="px-5 py-3 border-b border-gray-100 text-gray-500 font-mono text-xs">${student.id}</td>
+                        <td class="px-5 py-3 border-b border-gray-100 font-medium text-gray-900">${student.name}</td>
+                        <td class="px-5 py-3 border-b border-gray-100 text-gray-600">${student.roll_number}</td>
+                        <td class="px-5 py-3 border-b border-gray-100 text-right">
+                            <button class="text-gray-400 hover:text-red-600 transition-colors opacity-0 group-hover:opacity-100" onclick="deleteStudent(${student.id})" title="Remove">
+                                <iconify-icon icon="solar:trash-bin-trash-linear" class="text-lg"></iconify-icon>
+                            </button>
+                        </td>
+                    `;
+                    tbody.appendChild(row);
+                });
+            } catch (error) {
+                console.error('Error loading students:', error);
+                showMessage('Failed to load students', 'error');
+            }
+        }
+
+        async function startCamera() {
+            try {
+                const stream = await navigator.mediaDevices.getUserMedia({ video: { width: 320, height: 240 } });
+                const video = document.getElementById('camera-video');
+                video.srcObject = stream;
+                studentCameraStream = stream;
+                
+                video.classList.remove('hidden');
+                document.getElementById('captured-image').classList.add('hidden');
+                
+                const btnCapture = document.getElementById('btn-capture');
+                btnCapture.disabled = false;
+                btnCapture.classList.remove('opacity-50', 'cursor-not-allowed');
+                btnCapture.classList.add('text-gray-900');
+                
+                document.getElementById('btn-start-cam').textContent = 'Restart Cam';
+                
+            } catch (error) {
+                showMessage('Failed to access camera', 'error');
+            }
+        }
+
+        function capturePhoto() {
+            const video = document.getElementById('camera-video');
+            const canvas = document.getElementById('camera-canvas');
+            const context = canvas.getContext('2d');
+            
+            // Set canvas dimensions to match video
+            canvas.width = video.videoWidth || 640;
+            canvas.height = video.videoHeight || 480;
+            
+            // Draw video frame to canvas
+            context.drawImage(video, 0, 0, canvas.width, canvas.height);
+            
+            const imageData = canvas.toDataURL('image/jpeg');
+            const capturedImage = document.getElementById('captured-image');
+            capturedImage.src = imageData;
+            
+            video.classList.add('hidden');
+            capturedImage.classList.remove('hidden');
+            
+            document.getElementById('captured-image-data').value = imageData;
+        }
+
+        document.getElementById('add-student-form').addEventListener('submit', async function(e) {
+            e.preventDefault();
+            const name = document.getElementById('student-name').value;
+            const rollNumber = document.getElementById('roll-number').value;
+            const imageData = document.getElementById('captured-image-data').value;
+            
+            console.log('Saving student:', { name, rollNumber, hasImage: !!imageData });
+            
+            if (!imageData) {
+                showMessage('Please capture a face photo first', 'error');
+                return;
+            }
+            
+            try {
+                console.log('Sending request to:', `${API_BASE}/students`);
+                const response = await fetch(`${API_BASE}/students`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        name: name,
+                        roll_number: rollNumber,
+                        image: imageData
+                    })
+                });
+                
+                console.log('Response status:', response.status);
+                
+                if (!response.ok) {
+                    const errorData = await response.json();
+                    console.error('Error response:', errorData);
+                    throw new Error(errorData.error || 'Failed to add student');
+                }
+                
+                const result = await response.json();
+                console.log('Success response:', result);
+                
+                showMessage('Student added to directory', 'success');
+                
+                // Reset
+                this.reset();
+                document.getElementById('captured-image').classList.add('hidden');
+                document.getElementById('camera-video').classList.add('hidden');
+                document.getElementById('captured-image-data').value = '';
+                document.getElementById('btn-capture').disabled = true;
+                document.getElementById('btn-capture').classList.add('opacity-50', 'cursor-not-allowed');
+                
+                if (studentCameraStream) {
+                    studentCameraStream.getTracks().forEach(track => track.stop());
+                    document.getElementById('camera-video').srcObject = null;
+                }
+                loadStudents();
+                
+            } catch (error) {
+                console.error('Error adding student:', error);
+                showMessage(error.message || 'Failed to add student', 'error');
+            }
+        });
+
+        async function deleteStudent(studentId) {
+            if (confirm('Remove this student from directory?')) {
+                try {
+                    const response = await fetch(`${API_BASE}/students/${studentId}`, {
+                        method: 'DELETE'
+                    });
+                    
+                    if (!response.ok) {
+                        const errorData = await response.json();
+                        throw new Error(errorData.error || 'Failed to delete student');
+                    }
+                    
+                    showMessage('Student removed', 'success');
+                    loadStudents();
+                } catch (error) {
+                    console.error('Error deleting student:', error);
+                    showMessage(error.message || 'Failed to delete student', 'error');
+                }
+            }
+        }
+
+        // Attendance Session Flow
+        async function loadSessions() {
+            try {
+                const response = await fetch(`${API_BASE}/sessions`);
+                const sessions = await response.json();
+                
+                // Check for active session
+                const activeSession = sessions.find(s => s.is_active);
+                if (activeSession) {
+                    currentSession = activeSession;
+                    document.getElementById('session-setup').classList.add('hidden');
+                    document.getElementById('session-active-info').classList.remove('hidden');
+                    document.getElementById('inactive-overlay').classList.add('hidden');
+                    
+                    document.getElementById('current-session-id').textContent = `SESS-${activeSession.id}`;
+                    document.getElementById('session-start-time').textContent = new Date(activeSession.start_time).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
+                    document.getElementById('session-end-time').textContent = new Date(activeSession.end_time).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
+                } else {
+                    currentSession = null;
+                    document.getElementById('session-setup').classList.remove('hidden');
+                    document.getElementById('session-active-info').classList.add('hidden');
+                    document.getElementById('inactive-overlay').classList.remove('hidden');
+                }
+            } catch (error) {
+                console.error('Error loading sessions:', error);
+            }
+        }
+
+        async function startAttendanceSession() {
+            const sessionName = document.getElementById('session-name').value || 'Untitled Session';
+            const subject = document.getElementById('subject').value || 'General';
+            const duration = parseInt(document.getElementById('duration').value) || 1;
+            
+            if (!sessionName.trim()) {
+                showMessage('Please enter a session name', 'error');
+                return;
+            }
+            
+            try {
+                // First create the session (inactive)
+                const createResponse = await fetch(`${API_BASE}/sessions`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        session_name: sessionName,
+                        subject: subject,
+                        duration_hours: duration
+                    })
+                });
+                
+                if (!createResponse.ok) {
+                    const errorData = await createResponse.json();
+                    throw new Error(errorData.error || 'Failed to create session');
+                }
+                
+                const sessionData = await createResponse.json();
+                
+                // Then start/activate the session
+                const startResponse = await fetch(`${API_BASE}/sessions/${sessionData.session_id}/start`, {
+                    method: 'POST'
+                });
+                
+                if (!startResponse.ok) {
+                    const errorData = await startResponse.json();
+                    throw new Error(errorData.error || 'Failed to start session');
+                }
+                
+                currentSession = {
+                    id: sessionData.session_id,
+                    ...sessionData
+                };
+                
+                showMessage('Session started successfully', 'success');
+                
+                // UI Update
+                document.getElementById('session-setup').classList.add('hidden');
+                document.getElementById('session-active-info').classList.remove('hidden');
+                document.getElementById('inactive-overlay').classList.add('hidden');
+                
+                document.getElementById('current-session-id').textContent = `SESS-${sessionData.session_id}`;
+                document.getElementById('session-start-time').textContent = new Date(sessionData.start_time).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
+                document.getElementById('session-end-time').textContent = new Date(sessionData.end_time).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
+                
+                startAttendanceCamera();
+                
+                // Clear recognized list
+                document.getElementById('recognized-list').innerHTML = '<p class="text-sm text-gray-400 italic w-full text-center py-4" id="empty-log-msg">Scanning feed...</p>';
+                
+            } catch (error) {
+                console.error('Error starting session:', error);
+                showMessage(error.message || 'Failed to start session', 'error');
+            }
+        }
+
+        async function endAttendanceSession() {
+            if (!currentSession) return;
+            
+            try {
+                const response = await fetch(`${API_BASE}/sessions/${currentSession.id}/end`, {
+                    method: 'POST'
+                });
+                
+                if (!response.ok) {
+                    const errorData = await response.json();
+                    throw new Error(errorData.error || 'Failed to end session');
+                }
+                
+                showMessage('Session finalized successfully', 'success');
+                stopAttendanceCamera();
+                
+                document.getElementById('session-setup').classList.remove('hidden');
+                document.getElementById('session-active-info').classList.add('hidden');
+                document.getElementById('inactive-overlay').classList.remove('hidden');
+                currentSession = null;
+                loadDashboardStats();
+                
+            } catch (error) {
+                console.error('Error ending session:', error);
+                showMessage(error.message || 'Failed to end session', 'error');
+            }
+        }
+
+        async function startAttendanceCamera() {
+            try {
+                const stream = await navigator.mediaDevices.getUserMedia({ video: true });
+                const video = document.getElementById('attendance-video');
+                video.srcObject = stream;
+                video.classList.remove('hidden');
+                document.getElementById('scanner-overlay').classList.remove('hidden');
+                attendanceStream = stream;
+                
+                // Simulate recognition for UI demonstration
+                startFaceRecognitionSimulation();
+                
+            } catch (error) {
+                showMessage('Camera access denied', 'error');
+            }
+        }
+
+        function stopAttendanceCamera() {
+            console.log('Stopping attendance camera...');
+            
+            // Stop video stream
+            if (attendanceStream) {
+                attendanceStream.getTracks().forEach(track => {
+                    console.log('Stopping track:', track.label);
+                    track.stop();
+                });
+                attendanceStream = null;
+            }
+            
+            // Clear recognition interval
+            if (recognitionInterval) {
+                clearInterval(recognitionInterval);
+                recognitionInterval = null;
+            }
+            
+            // Clear video element
+            const video = document.getElementById('attendance-video');
+            if (video) {
+                video.srcObject = null;
+                video.classList.add('hidden');
+            }
+            
+            // Hide scanner overlay
+            const scannerOverlay = document.getElementById('scanner-overlay');
+            if (scannerOverlay) {
+                scannerOverlay.classList.add('hidden');
+            }
+            
+            console.log('Camera stopped successfully');
+        }
+
+        function startFaceRecognitionSimulation() {
+            const video = document.getElementById('attendance-video');
+            const canvas = document.createElement('canvas');
+            const context = canvas.getContext('2d');
+            
+            recognitionInterval = setInterval(async () => {
+                if(!currentSession || !video.videoWidth) return;
+                
+                try {
+                    // Set canvas size to match video
+                    canvas.width = video.videoWidth;
+                    canvas.height = video.videoHeight;
+                    
+                    // Draw current video frame to canvas
+                    context.drawImage(video, 0, 0, canvas.width, canvas.height);
+                    
+                    // Get image data as base64
+                    const imageData = canvas.toDataURL('image/jpeg');
+                    
+                    // Send to API for face recognition
+                    const response = await fetch(`${API_BASE}/recognize-faces`, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                        },
+                        body: JSON.stringify({
+                            image: imageData,
+                            session_id: currentSession.id
+                        })
+                    });
+                    
+                    if (response.ok) {
+                        const result = await response.json();
+                        if (result.recognized_students && result.recognized_students.length > 0) {
+                            updateRecognizedFaces(result.recognized_students);
+                            
+                            // Mark attendance for recognized students
+                            await fetch(`${API_BASE}/sessions/${currentSession.id}/mark-attendance`, {
+                                method: 'POST',
+                                headers: {
+                                    'Content-Type': 'application/json',
+                                },
+                                body: JSON.stringify({
+                                    recognized_students: result.recognized_students
+                                })
+                            });
+                        }
+                    }
+                } catch (error) {
+                    console.error('Face recognition error:', error);
+                    // Continue trying even if there's an error
+                }
+            }, 3000); // Check every 3 seconds
+        }
+
+        function updateRecognizedFaces(recognizedStudents) {
+            const recognizedList = document.getElementById('recognized-list');
+            const emptyMsg = document.getElementById('empty-log-msg');
+            if(emptyMsg) emptyMsg.remove();
+            
+            recognizedStudents.forEach(student => {
+                if (!document.getElementById(`recognized-${student.roll_number}`)) {
+                    const el = document.createElement('div');
+                    el.id = `recognized-${student.roll_number}`;
+                    el.className = 'bg-gray-100 border border-gray-200 text-gray-800 text-xs font-medium px-2.5 py-1.5 rounded-md flex items-center gap-1.5 animate-[toastEnter_0.3s_ease-out]';
+                    
+                    const confColor = student.confidence > 0.9 ? 'text-green-500' : 'text-yellow-500';
+                    
+                    el.innerHTML = `
+                        <iconify-icon icon="solar:check-circle-bold" class="${confColor} text-sm"></iconify-icon>
+                        ${student.name}
+                        <span class="text-gray-400 font-normal ml-1">${Math.round(student.confidence * 100)}%</span>
+                    `;
+                    recognizedList.prepend(el); // Add to top
+                }
+            });
+        }
+
+        // Reports
+        function populateYearDropdown() {
+            const yearSelect = document.getElementById('report-month-year');
+            const currentYear = new Date().getFullYear();
+            yearSelect.innerHTML = '';
+            for (let year = currentYear - 1; year <= currentYear + 1; year++) {
+                yearSelect.add(new Option(year, year));
+            }
+        }
+
+        function setCurrentMonth() {
+            const now = new Date();
+            document.getElementById('report-month-month').value = now.getMonth() + 1;
+            document.getElementById('report-month-year').value = now.getFullYear();
+        }
+
+        async function generateMonthlyReport() {
+            try {
+                const month = document.getElementById('report-month-month').value;
+                const year = document.getElementById('report-month-year').value;
+                const monthString = `${year}-${month.padStart(2, '0')}`;
+                
+                const response = await fetch(`${API_BASE}/reports/monthly?month=${monthString}`);
+                
+                if (!response.ok) {
+                    const errorData = await response.json();
+                    throw new Error(errorData.error || 'Failed to generate report');
+                }
+                
+                const reportData = await response.json();
+                displayMonthlyReport(reportData);
+                document.getElementById('download-excel-btn').classList.remove('hidden');
+                document.getElementById('download-excel-btn').classList.add('flex');
+                showMessage('Report generated', 'success');
+                
+            } catch (error) {
+                console.error('Error generating report:', error);
+                showMessage(error.message || 'Failed to generate report', 'error');
+            }
+        }
+
+        function displayMonthlyReport(reportData) {
+            const reportDisplay = document.getElementById('report-display');
+            const table = document.getElementById('report-table');
+            const thead = table.querySelector('thead tr');
+            const tbody = document.getElementById('report-tbody');
+            
+            // Reset headers (keep first two)
+            while(thead.children.length > 2) {
+                thead.removeChild(thead.lastChild);
+            }
+            tbody.innerHTML = '';
+            
+            reportData.days.forEach(day => {
+                const th = document.createElement('th');
+                th.className = "px-4 py-3 border-b border-gray-100 text-center";
+                th.textContent = day;
+                thead.appendChild(th);
+            });
+            
+            const totalTh = document.createElement('th');
+            totalTh.className = "px-4 py-3 border-b border-gray-100 text-center sticky right-0 bg-white border-l shadow-[-4px_0_10px_-4px_rgba(0,0,0,0.05)]";
+            totalTh.textContent = 'Tot';
+            thead.appendChild(totalTh);
+            
+            reportData.students.forEach(student => {
+                const row = document.createElement('tr');
+                row.className = "hover:bg-gray-50/50 transition-colors";
+                
+                row.innerHTML = `
+                    <td class="px-5 py-3 border-b border-gray-100 sticky left-0 bg-white border-r font-mono text-xs text-gray-500">${student.roll_number}</td>
+                    <td class="px-5 py-3 border-b border-gray-100 sticky left-32 bg-white border-r font-medium text-gray-900">${student.name}</td>
+                `;
+                
+                let totalPresent = 0;
+                reportData.days.forEach(day => {
+                    const td = document.createElement('td');
+                    td.className = "px-4 py-3 border-b border-gray-100 text-center";
+                    const status = student.attendance[day];
+                    
+                    if (status === 'present') {
+                        td.innerHTML = '<span class="inline-flex h-2 w-2 rounded-full bg-green-400"></span>';
+                        totalPresent++;
+                    } else if (status === 'absent') {
+                        td.innerHTML = '<span class="inline-flex h-2 w-2 rounded-full bg-red-400"></span>';
+                    } else {
+                        td.innerHTML = '<span class="text-gray-300">-</span>';
+                    }
+                    row.appendChild(td);
+                });
+                
+                const totalTd = document.createElement('td');
+                totalTd.className = "px-4 py-3 border-b border-gray-100 text-center font-medium sticky right-0 bg-white border-l shadow-[-4px_0_10px_-4px_rgba(0,0,0,0.05)]";
+                const percentage = Math.round((totalPresent / reportData.days.length) * 100);
+                totalTd.innerHTML = `<span class="${percentage >= 75 ? 'text-green-600' : 'text-red-600'}">${percentage}%</span>`;
+                row.appendChild(totalTd);
+                
+                tbody.appendChild(row);
+            });
+            
+            reportDisplay.classList.remove('hidden');
+            
+            // Sync background colors for sticky columns on hover
+            const rows = tbody.querySelectorAll('tr');
+            rows.forEach(r => {
+                r.addEventListener('mouseenter', () => {
+                    r.querySelectorAll('.sticky').forEach(c => c.classList.replace('bg-white', 'bg-gray-50/50'));
+                });
+                r.addEventListener('mouseleave', () => {
+                    r.querySelectorAll('.sticky').forEach(c => c.classList.replace('bg-gray-50/50', 'bg-white'));
+                });
+            });
+        }
+
+        async function downloadExcelReport() {
+            try {
+                const month = document.getElementById('report-month-month').value;
+                const year = document.getElementById('report-month-year').value;
+                const monthString = `${year}-${month.padStart(2, '0')}`;
+                
+                const response = await fetch(`${API_BASE}/reports/excel?month=${monthString}`);
+                
+                if (!response.ok) {
+                    const errorData = await response.json();
+                    throw new Error(errorData.error || 'Failed to download report');
+                }
+                
+                // Create blob and download
+                const blob = await response.blob();
+                const url = window.URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `attendance_report_${monthString}.xlsx`;
+                document.body.appendChild(a);
+                a.click();
+                window.URL.revokeObjectURL(url);
+                document.body.removeChild(a);
+                
+                showMessage('Excel report downloaded successfully', 'success');
+                
+            } catch (error) {
+                console.error('Error downloading report:', error);
+                showMessage(error.message || 'Failed to download report', 'error');
+            }
+        }
+
+        // ID Card Scanning Functions
+        function showIDCardUpload() {
+            document.getElementById('id-card-section').classList.remove('hidden');
+        }
+
+        function hideIDCardUpload() {
+            document.getElementById('id-card-section').classList.add('hidden');
+            document.getElementById('id-card-input').value = '';
+            document.getElementById('id-card-preview').classList.add('hidden');
+        }
+
+        function manualFill() {
+            hideIDCardUpload();
+            document.getElementById('student-name').focus();
+        }
+
+        function handleIDCardUpload(event) {
+            const file = event.target.files[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    document.getElementById('id-card-preview-img').src = e.target.result;
+                    document.getElementById('id-card-preview').classList.remove('hidden');
+                };
+                reader.readAsDataURL(file);
+            }
+        }
+
+        async function scanIDCard() {
+            const fileInput = document.getElementById('id-card-input');
+            const file = fileInput.files[0];
+            
+            if (!file) {
+                showMessage('Please select an ID card image first', 'error');
+                return;
+            }
+
+            try {
+                const reader = new FileReader();
+                reader.onload = async function(e) {
+                    const imageData = e.target.result;
+                    
+                    showMessage('Scanning ID card...', 'success');
+                    
+                    const response = await fetch(`${API_BASE}/scan-id-card`, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                        },
+                        body: JSON.stringify({
+                            image: imageData
+                        })
+                    });
+
+                    if (!response.ok) {
+                        const errorData = await response.json();
+                        throw new Error(errorData.error || 'Failed to scan ID card');
+                    }
+
+                    const result = await response.json();
+                    
+                    if (result.name && result.roll_number) {
+                        document.getElementById('student-name').value = result.name;
+                        document.getElementById('roll-number').value = result.roll_number;
+                        showMessage('ID card scanned successfully!', 'success');
+                        hideIDCardUpload();
+                    } else {
+                        showMessage('Could not extract information from ID card. Please try manual entry.', 'error');
+                        console.log('Raw OCR text:', result.raw_text);
+                    }
+                };
+                reader.readAsDataURL(file);
+                
+            } catch (error) {
+                console.error('Error scanning ID card:', error);
+                showMessage(error.message || 'Failed to scan ID card', 'error');
+            }
+        }
+
+        // Subject Management Functions
+        async function loadSubjects() {
+            try {
+                const response = await fetch(`${API_BASE}/subjects`);
+                const subjects = await response.json();
+                
+                const subjectSelect = document.getElementById('subject');
+                subjectSelect.innerHTML = '<option value="General">General</option>';
+                
+                subjects.forEach(subject => {
+                    if (subject.name !== 'General') {
+                        const option = document.createElement('option');
+                        option.value = subject.name;
+                        option.textContent = subject.name;
+                        subjectSelect.appendChild(option);
+                    }
+                });
+                
+            } catch (error) {
+                console.error('Error loading subjects:', error);
+            }
+        }
+
+        // Subjects are now loaded in the main DOMContentLoaded event listener
+
+        // Update session creation to include subject
+        async function createSession() {
+            const sessionName = document.getElementById('session-name').value;
+            const subject = document.getElementById('subject').value;
+            const duration = document.getElementById('duration').value;
+
+            if (!sessionName.trim()) {
+                showMessage('Please enter a session name', 'error');
+                return;
+            }
+
+            try {
+                const response = await fetch(`${API_BASE}/sessions`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        session_name: sessionName,
+                        subject: subject,
+                        duration_hours: parseInt(duration)
+                    })
+                });
+
+                if (!response.ok) {
+                    const errorData = await response.json();
+                    throw new Error(errorData.error || 'Failed to create session');
+                }
+
+                const session = await response.json();
+                currentSession = session;
+                
+                showMessage('Session created successfully!', 'success');
+                
+                // Clear form
+                document.getElementById('session-name').value = '';
+                
+                // Update UI
+                document.getElementById('session-setup').classList.add('hidden');
+                document.getElementById('session-info').classList.remove('hidden');
+                document.getElementById('current-session-name').textContent = session.session_name;
+                document.getElementById('current-subject').textContent = session.subject;
+                
+                loadSessions();
+                
+            } catch (error) {
+                console.error('Error creating session:', error);
+                showMessage(error.message || 'Failed to create session', 'error');
+            }
+        }
+
+        window.addEventListener('beforeunload', function() {
+            stopAttendanceCamera();
+            if (studentCameraStream) studentCameraStream.getTracks().forEach(track => track.stop());
+        });
+    </script>
+</body>
+</html>
