@@ -162,6 +162,38 @@
                             </div>
                             
                             <div>
+                                <label class="block text-xs font-medium text-gray-500 mb-1.5 uppercase tracking-wider">Quick Add Options</label>
+                                <div class="flex gap-2 mb-3">
+                                    <button type="button" class="flex-1 bg-blue-50 border border-blue-200 text-blue-700 px-3 py-2 rounded-md text-xs font-medium hover:bg-blue-100 transition-colors flex items-center justify-center gap-1.5" onclick="showIDCardUpload()">
+                                        <iconify-icon icon="solar:id-card-linear" stroke-width="1.5"></iconify-icon>
+                                        Scan ID Card
+                                    </button>
+                                    <button type="button" class="flex-1 bg-gray-50 border border-gray-200 text-gray-700 px-3 py-2 rounded-md text-xs font-medium hover:bg-gray-100 transition-colors flex items-center justify-center gap-1.5" onclick="manualFill()">
+                                        <iconify-icon icon="solar:keyboard-linear" stroke-width="1.5"></iconify-icon>
+                                        Manual Entry
+                                    </button>
+                                </div>
+                                
+                                <!-- ID Card Upload Section (Hidden by default) -->
+                                <div id="id-card-section" class="hidden border border-blue-200 rounded-lg p-3 bg-blue-50/50 mb-3">
+                                    <div class="flex items-center justify-between mb-2">
+                                        <span class="text-xs font-medium text-blue-900">Upload ID Card</span>
+                                        <button type="button" onclick="hideIDCardUpload()" class="text-blue-600 hover:text-blue-800">
+                                            <iconify-icon icon="solar:close-circle-linear" class="text-sm"></iconify-icon>
+                                        </button>
+                                    </div>
+                                    <input type="file" id="id-card-input" accept="image/*" class="w-full text-xs mb-2 border border-blue-200 rounded px-2 py-1.5 bg-white" onchange="handleIDCardUpload(event)">
+                                    <div id="id-card-preview" class="hidden mb-2">
+                                        <img id="id-card-preview-img" class="w-full h-32 object-cover rounded border border-blue-200">
+                                    </div>
+                                    <button type="button" onclick="scanIDCard()" class="w-full bg-blue-600 text-white px-3 py-1.5 rounded-md text-xs font-medium hover:bg-blue-700 transition-colors flex items-center justify-center gap-1.5">
+                                        <iconify-icon icon="solar:scan-linear" stroke-width="1.5"></iconify-icon>
+                                        Scan & Extract
+                                    </button>
+                                </div>
+                            </div>
+                            
+                            <div>
                                 <label class="block text-xs font-medium text-gray-500 mb-1.5 uppercase tracking-wider">Face Data</label>
                                 <div class="border border-gray-200 rounded-lg p-2 bg-gray-50">
                                     <div class="relative w-full aspect-video bg-gray-200 rounded-md overflow-hidden flex items-center justify-center mb-3">
@@ -235,8 +267,18 @@
                         
                         <div class="space-y-4">
                             <div>
-                                <label for="session-name" class="block text-xs font-medium text-gray-500 mb-1.5 uppercase tracking-wider">Class/Subject</label>
-                                <input type="text" id="session-name" placeholder="e.g., Data Structures" class="w-full bg-transparent border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-gray-400 focus:ring-1 focus:ring-gray-400 transition-shadow">
+                                <label for="subject" class="block text-xs font-medium text-gray-500 mb-1.5 uppercase tracking-wider">Subject</label>
+                                <div class="relative">
+                                    <select id="subject" class="w-full appearance-none bg-transparent border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-gray-400 focus:ring-1 focus:ring-gray-400 transition-shadow pr-8">
+                                        <option value="General">General</option>
+                                    </select>
+                                    <iconify-icon icon="solar:alt-arrow-down-linear" class="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none"></iconify-icon>
+                                </div>
+                            </div>
+                            
+                            <div>
+                                <label for="session-name" class="block text-xs font-medium text-gray-500 mb-1.5 uppercase tracking-wider">Session Name</label>
+                                <input type="text" id="session-name" placeholder="e.g., Lecture 1, Mid-term, Quiz" class="w-full bg-transparent border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-gray-400 focus:ring-1 focus:ring-gray-400 transition-shadow">
                             </div>
                             
                             <div>
@@ -404,6 +446,7 @@
             loadDashboardStats();
             loadStudents();
             loadSessions();
+            loadSubjects(); // Load subjects on page load
             populateYearDropdown();
             setCurrentMonth();
         });
@@ -706,32 +749,51 @@
 
         async function startAttendanceSession() {
             const sessionName = document.getElementById('session-name').value || 'Untitled Session';
+            const subject = document.getElementById('subject').value || 'General';
             const duration = parseInt(document.getElementById('duration').value) || 1;
             
+            if (!sessionName.trim()) {
+                showMessage('Please enter a session name', 'error');
+                return;
+            }
+            
             try {
-                const response = await fetch(`${API_BASE}/sessions`, {
+                // First create the session (inactive)
+                const createResponse = await fetch(`${API_BASE}/sessions`, {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
                     },
                     body: JSON.stringify({
                         session_name: sessionName,
+                        subject: subject,
                         duration_hours: duration
                     })
                 });
                 
-                if (!response.ok) {
-                    const errorData = await response.json();
+                if (!createResponse.ok) {
+                    const errorData = await createResponse.json();
+                    throw new Error(errorData.error || 'Failed to create session');
+                }
+                
+                const sessionData = await createResponse.json();
+                
+                // Then start/activate the session
+                const startResponse = await fetch(`${API_BASE}/sessions/${sessionData.session_id}/start`, {
+                    method: 'POST'
+                });
+                
+                if (!startResponse.ok) {
+                    const errorData = await startResponse.json();
                     throw new Error(errorData.error || 'Failed to start session');
                 }
                 
-                const sessionData = await response.json();
                 currentSession = {
                     id: sessionData.session_id,
                     ...sessionData
                 };
                 
-                showMessage('Detection session started', 'success');
+                showMessage('Session started successfully', 'success');
                 
                 // UI Update
                 document.getElementById('session-setup').classList.add('hidden');
@@ -1053,6 +1115,161 @@
             } catch (error) {
                 console.error('Error downloading report:', error);
                 showMessage(error.message || 'Failed to download report', 'error');
+            }
+        }
+
+        // ID Card Scanning Functions
+        function showIDCardUpload() {
+            document.getElementById('id-card-section').classList.remove('hidden');
+        }
+
+        function hideIDCardUpload() {
+            document.getElementById('id-card-section').classList.add('hidden');
+            document.getElementById('id-card-input').value = '';
+            document.getElementById('id-card-preview').classList.add('hidden');
+        }
+
+        function manualFill() {
+            hideIDCardUpload();
+            document.getElementById('student-name').focus();
+        }
+
+        function handleIDCardUpload(event) {
+            const file = event.target.files[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    document.getElementById('id-card-preview-img').src = e.target.result;
+                    document.getElementById('id-card-preview').classList.remove('hidden');
+                };
+                reader.readAsDataURL(file);
+            }
+        }
+
+        async function scanIDCard() {
+            const fileInput = document.getElementById('id-card-input');
+            const file = fileInput.files[0];
+            
+            if (!file) {
+                showMessage('Please select an ID card image first', 'error');
+                return;
+            }
+
+            try {
+                const reader = new FileReader();
+                reader.onload = async function(e) {
+                    const imageData = e.target.result;
+                    
+                    showMessage('Scanning ID card...', 'success');
+                    
+                    const response = await fetch(`${API_BASE}/scan-id-card`, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                        },
+                        body: JSON.stringify({
+                            image: imageData
+                        })
+                    });
+
+                    if (!response.ok) {
+                        const errorData = await response.json();
+                        throw new Error(errorData.error || 'Failed to scan ID card');
+                    }
+
+                    const result = await response.json();
+                    
+                    if (result.name && result.roll_number) {
+                        document.getElementById('student-name').value = result.name;
+                        document.getElementById('roll-number').value = result.roll_number;
+                        showMessage('ID card scanned successfully!', 'success');
+                        hideIDCardUpload();
+                    } else {
+                        showMessage('Could not extract information from ID card. Please try manual entry.', 'error');
+                        console.log('Raw OCR text:', result.raw_text);
+                    }
+                };
+                reader.readAsDataURL(file);
+                
+            } catch (error) {
+                console.error('Error scanning ID card:', error);
+                showMessage(error.message || 'Failed to scan ID card', 'error');
+            }
+        }
+
+        // Subject Management Functions
+        async function loadSubjects() {
+            try {
+                const response = await fetch(`${API_BASE}/subjects`);
+                const subjects = await response.json();
+                
+                const subjectSelect = document.getElementById('subject');
+                subjectSelect.innerHTML = '<option value="General">General</option>';
+                
+                subjects.forEach(subject => {
+                    if (subject.name !== 'General') {
+                        const option = document.createElement('option');
+                        option.value = subject.name;
+                        option.textContent = subject.name;
+                        subjectSelect.appendChild(option);
+                    }
+                });
+                
+            } catch (error) {
+                console.error('Error loading subjects:', error);
+            }
+        }
+
+        // Subjects are now loaded in the main DOMContentLoaded event listener
+
+        // Update session creation to include subject
+        async function createSession() {
+            const sessionName = document.getElementById('session-name').value;
+            const subject = document.getElementById('subject').value;
+            const duration = document.getElementById('duration').value;
+
+            if (!sessionName.trim()) {
+                showMessage('Please enter a session name', 'error');
+                return;
+            }
+
+            try {
+                const response = await fetch(`${API_BASE}/sessions`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        session_name: sessionName,
+                        subject: subject,
+                        duration_hours: parseInt(duration)
+                    })
+                });
+
+                if (!response.ok) {
+                    const errorData = await response.json();
+                    throw new Error(errorData.error || 'Failed to create session');
+                }
+
+                const session = await response.json();
+                currentSession = session;
+                
+                showMessage('Session created successfully!', 'success');
+                
+                // Clear form
+                document.getElementById('session-name').value = '';
+                
+                // Update UI
+                document.getElementById('session-setup').classList.add('hidden');
+                document.getElementById('session-info').classList.remove('hidden');
+                document.getElementById('current-session-name').textContent = session.session_name;
+                document.getElementById('current-subject').textContent = session.subject;
+                
+                loadSessions();
+                
+            } catch (error) {
+                console.error('Error creating session:', error);
+                showMessage(error.message || 'Failed to create session', 'error');
             }
         }
 
