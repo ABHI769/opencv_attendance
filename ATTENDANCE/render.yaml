@@ -1,0 +1,19 @@
+services:
+  - type: web
+    name: attendance-system
+    env: docker
+    plan: free
+    healthCheckPath: /api/students
+    httpPort: 5000
+    envVars:
+      - key: PORT
+        value: 5000
+      - key: PYTHONUNBUFFERED
+        value: "1"
+    buildCommand: ""
+    startCommand: "cd ai-service && python app.py"
+
+disks:
+  - name: attendance-data
+    sizeGB: 1
+    mountPath: /app/ai-service
