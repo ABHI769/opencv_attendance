@@ -1,0 +1,6 @@
+{
+  "name": "face-recognition-attendance",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Face Recognition Attendance System - Frontend on Vercel, Backend on Render"
+}
