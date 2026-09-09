@@ -1,9 +1,0 @@
-{
-  "name": "face-recognition-attendance",
-  "version": "1.0.0",
-  "private": true,
-  "description": "Face Recognition Attendance System - Web frontend on Vercel, Face Recognition Backend on Render",
-  "scripts": {
-    "build": ""
-  }
-}
